@@ -92,19 +92,19 @@ export default function Home() {
     const audio = audioRef.current ?? new AudioContextClass();
     audioRef.current = audio;
     const now = audio.currentTime;
-    const volume = 0.16 + strength * 0.28;
+    const volume = 0.28 + strength * 0.49;
 
     if (sound === "puff") {
       const duration = 0.72;
       const master = audio.createGain();
       const compressor = audio.createDynamicsCompressor();
-      compressor.threshold.value = -12;
+      compressor.threshold.value = -8;
       compressor.knee.value = 10;
-      compressor.ratio.value = 4;
+      compressor.ratio.value = 3;
       compressor.attack.value = 0.003;
       compressor.release.value = 0.24;
       master.gain.setValueAtTime(0.0001, now);
-      master.gain.exponentialRampToValueAtTime(Math.min(0.58, volume * 0.82), now + 0.008);
+      master.gain.exponentialRampToValueAtTime(Math.min(0.92, volume * 1.25), now + 0.008);
       master.gain.exponentialRampToValueAtTime(0.0001, now + duration - 0.03);
       master.connect(compressor).connect(audio.destination);
 
@@ -158,7 +158,7 @@ export default function Home() {
       source = oscillator;
     } else {
       duration = 0.3;
-      peakVolume = Math.min(0.72, volume * 1.1);
+      peakVolume = Math.min(0.9, volume * 1.1);
       const oscillator = audio.createOscillator();
       const startFrequency = phase === "press" ? 230 : 280 + strength * 40;
       const endFrequency = phase === "press" ? 115 : 760;
