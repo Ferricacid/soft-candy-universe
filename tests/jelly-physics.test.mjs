@@ -6,6 +6,7 @@ import {
   limitPointerReach,
   polygonArea,
   radialInfluence,
+  reboundPhysics,
 } from "../app/jelly-physics.ts";
 
 test("builds an evenly sampled closed membrane with outward normals", () => {
@@ -52,4 +53,31 @@ test("keeps a distant drag attached while limiting only its maximum reach", () =
   assert.ok(Math.abs(normalizedRadius - 1.65) < 1e-10);
   assert.ok(distant.x > 0 && distant.y > 0);
   assert.equal(distant.stretch, 1);
+});
+
+test("makes the lowest rebound setting dramatically slower than the highest", () => {
+  const slow = reboundPhysics(1);
+  const fast = reboundPhysics(10);
+
+  const settlingFrames = (physics) => {
+    let pressure = 1;
+    let velocity = -physics.releaseImpulse;
+    let frames = 0;
+    while (pressure > 0.05 && frames < 1200) {
+      velocity -= pressure * physics.pressureSpring;
+      velocity *= physics.pressureDamping;
+      pressure += velocity;
+      frames += 1;
+    }
+    return frames;
+  };
+
+  assert.equal(slow.pace, 0);
+  assert.equal(fast.pace, 1);
+  assert.ok(slow.membraneSpring < fast.membraneSpring / 100);
+  assert.ok(slow.pressureSpring < fast.pressureSpring / 70);
+  assert.ok(slow.releaseImpulse < fast.releaseImpulse / 8);
+  assert.ok(slow.pressureDamping > fast.pressureDamping);
+  assert.ok(settlingFrames(slow) > 300);
+  assert.ok(settlingFrames(fast) < 60);
 });

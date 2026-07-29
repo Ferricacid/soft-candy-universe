@@ -13,6 +13,7 @@ import {
   limitPointerReach,
   polygonArea,
   radialInfluence,
+  reboundPhysics,
   smoothRing,
   type MembranePoint,
   type Point,
@@ -140,6 +141,8 @@ export default function Home() {
     let baseArea = 1;
     let handledPressId = 0;
     let membrane: MembranePoint[] = [];
+    let wasHeld = false;
+    let lastHeldOffsets: number[] = [];
 
     const resize = () => {
       const rect = surface.getBoundingClientRect();
@@ -258,9 +261,7 @@ export default function Home() {
       const steps = Math.max(1, Math.ceil(elapsed / (1 / 58)));
       const step = elapsed / steps;
       const shapeScale = Math.max(0.72, radiusY / 27);
-      const membraneSpring = 54 + settings.rebound * 7;
-      const membraneDamping = 20 - settings.rebound * 0.65;
-      const waveCoupling = 90 + settings.rebound * 9;
+      const rebound = reboundPhysics(settings.rebound);
       const localWidth = radiusY * (38 / 27);
       const haloWidth = radiusY * (70 / 27);
 
@@ -274,10 +275,10 @@ export default function Home() {
           const nextPoint = membrane[(index + 1) % membrane.length];
           const laplacian = previousPoint.displacement + nextPoint.displacement - 2 * point.displacement;
           let value = (
-            -point.displacement * membraneSpring
-            + laplacian * waveCoupling
-            - point.velocity * membraneDamping
-            + areaError * 620
+            -point.displacement * rebound.membraneSpring
+            + laplacian * rebound.waveCoupling
+            - point.velocity * rebound.membraneDamping
+            + areaError * rebound.areaPressure
           );
 
           if (pointer.insideWeight > 0.02) {
@@ -306,7 +307,7 @@ export default function Home() {
 
         const average = membrane.reduce((sum, point) => sum + point.displacement, 0) / membrane.length;
         membrane.forEach((point) => {
-          point.displacement -= average * 0.1;
+          point.displacement -= average * rebound.averageCorrection;
         });
       }
     };
@@ -321,10 +322,9 @@ export default function Home() {
       const heldFor = motion.held ? now - motion.startedAt : 0;
       const heldPressure = motion.held ? Math.min(1, heldFor / chargeDuration) : 0;
       const target = motion.held ? 0.16 + heldPressure * 0.84 : 0;
-      const spring = 0.035 + settings.rebound * 0.006;
-      const damping = 0.67 + (10 - settings.rebound) * 0.012;
-      motion.pressureVelocity += (target - motion.pressure) * spring * delta;
-      motion.pressureVelocity *= Math.pow(damping, delta);
+      const rebound = reboundPhysics(settings.rebound);
+      motion.pressureVelocity += (target - motion.pressure) * rebound.pressureSpring * delta;
+      motion.pressureVelocity *= Math.pow(rebound.pressureDamping, delta);
       motion.pressure += motion.pressureVelocity * delta;
       motion.pressure = Math.max(-0.12, Math.min(1.12, motion.pressure));
 
@@ -339,8 +339,24 @@ export default function Home() {
       const centerY = height / 2 - 2;
       const pressure = Math.max(0, motion.pressure);
       applyPressImpulse(motion, centerX, centerY);
+      const currentHeldOffsets = heldOffsets(motion, pressure, centerX, centerY);
+      if (motion.held) {
+        lastHeldOffsets = currentHeldOffsets;
+        wasHeld = true;
+      } else if (wasHeld) {
+        const shapeScale = Math.max(0.72, radiusY / 27);
+        membrane.forEach((point, index) => {
+          point.displacement = clamp(
+            point.displacement + (lastHeldOffsets[index] ?? 0),
+            -8 * shapeScale,
+            24 * shapeScale,
+          );
+        });
+        lastHeldOffsets = [];
+        wasHeld = false;
+      }
       updateMembrane(elapsed, motion, pressure, settings, centerX, centerY);
-      const localSurface = surfacePoints(heldOffsets(motion, pressure, centerX, centerY));
+      const localSurface = surfacePoints(currentHeldOffsets);
       const points = localSurface.map((point) => ({ x: centerX + point.x, y: centerY + point.y }));
       const pointer = pointerState(motion, centerX, centerY);
       const textX = motion.held ? clamp(pointer.fieldX / radiusX, -1, 1) : 0;
@@ -367,14 +383,6 @@ export default function Home() {
       context.shadowOffsetY = 16 - pressure * 5;
       context.fill();
       context.clip();
-
-      const glow = context.createRadialGradient(centerX - 86, centerY - 67, 2, centerX - 82, centerY - 62, 150);
-      glow.addColorStop(0, "rgba(255,255,255,.82)");
-      glow.addColorStop(0.2, "rgba(255,255,255,.34)");
-      glow.addColorStop(0.66, "rgba(255,255,255,.05)");
-      glow.addColorStop(1, "rgba(255,255,255,0)");
-      context.fillStyle = glow;
-      context.fillRect(0, 0, width, height);
 
       const lowerShade = context.createLinearGradient(0, centerY, 0, centerY + 125);
       lowerShade.addColorStop(0, "rgba(85,28,60,0)");
@@ -461,7 +469,7 @@ export default function Home() {
     if (!motion.held) return;
     const strength = Math.max(0.15, Math.min(1, (performance.now() - motion.startedAt) / (1900 - charge * 145)));
     motion.held = false;
-    motion.pressureVelocity -= 0.035 * strength * rebound;
+    motion.pressureVelocity -= reboundPhysics(rebound).releaseImpulse * strength;
     setHolding(false);
     setChargeLevel(0);
     playSound("release", strength);

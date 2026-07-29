@@ -19,6 +19,18 @@ export type LimitedPointer = Point & {
   stretch: number;
 };
 
+export type ReboundPhysics = {
+  pace: number;
+  membraneSpring: number;
+  membraneDamping: number;
+  waveCoupling: number;
+  areaPressure: number;
+  averageCorrection: number;
+  pressureSpring: number;
+  pressureDamping: number;
+  releaseImpulse: number;
+};
+
 export function clamp(value: number, minimum: number, maximum: number) {
   return Math.min(maximum, Math.max(minimum, value));
 }
@@ -38,6 +50,23 @@ export function limitPointerReach(
     x: pointerX * scale,
     y: pointerY * scale,
     stretch: clamp((limitedRadius - 0.55) / (maximumRadius - 0.55), 0, 1),
+  };
+}
+
+export function reboundPhysics(level: number): ReboundPhysics {
+  const normalized = clamp((level - 1) / 9, 0, 1);
+  const pace = Math.pow(normalized, 3.5);
+
+  return {
+    pace,
+    membraneSpring: 0.5 + pace * 123.5,
+    membraneDamping: 1.4 + pace * 12.1,
+    waveCoupling: 8 + pace * 172,
+    areaPressure: 8 + pace * 612,
+    averageCorrection: 0.004 + pace * 0.096,
+    pressureSpring: 0.00015 + pace * 0.09485,
+    pressureDamping: 0.975 - pace * 0.305,
+    releaseImpulse: 0.0004 + pace * 0.0346,
   };
 }
 
