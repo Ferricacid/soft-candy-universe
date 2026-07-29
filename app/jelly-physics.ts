@@ -70,6 +70,20 @@ export function reboundPhysics(level: number): ReboundPhysics {
   };
 }
 
+export function heldPhysics(): ReboundPhysics {
+  return {
+    pace: 1,
+    membraneSpring: 96,
+    membraneDamping: 16.1,
+    waveCoupling: 144,
+    areaPressure: 620,
+    averageCorrection: 0.1,
+    pressureSpring: 0.071,
+    pressureDamping: 0.718,
+    releaseImpulse: 0,
+  };
+}
+
 function gaussian(distance: number, width: number) {
   return Math.exp(-(distance * distance) / (2 * width * width));
 }

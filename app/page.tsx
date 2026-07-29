@@ -10,6 +10,7 @@ import {
 import {
   clamp,
   createCandyMembrane,
+  heldPhysics,
   limitPointerReach,
   polygonArea,
   radialInfluence,
@@ -261,7 +262,7 @@ export default function Home() {
       const steps = Math.max(1, Math.ceil(elapsed / (1 / 58)));
       const step = elapsed / steps;
       const shapeScale = Math.max(0.72, radiusY / 27);
-      const rebound = reboundPhysics(settings.rebound);
+      const physics = motion.held ? heldPhysics() : reboundPhysics(settings.rebound);
       const localWidth = radiusY * (38 / 27);
       const haloWidth = radiusY * (70 / 27);
 
@@ -275,10 +276,10 @@ export default function Home() {
           const nextPoint = membrane[(index + 1) % membrane.length];
           const laplacian = previousPoint.displacement + nextPoint.displacement - 2 * point.displacement;
           let value = (
-            -point.displacement * rebound.membraneSpring
-            + laplacian * rebound.waveCoupling
-            - point.velocity * rebound.membraneDamping
-            + areaError * rebound.areaPressure
+            -point.displacement * physics.membraneSpring
+            + laplacian * physics.waveCoupling
+            - point.velocity * physics.membraneDamping
+            + areaError * physics.areaPressure
           );
 
           if (pointer.insideWeight > 0.02) {
@@ -307,7 +308,7 @@ export default function Home() {
 
         const average = membrane.reduce((sum, point) => sum + point.displacement, 0) / membrane.length;
         membrane.forEach((point) => {
-          point.displacement -= average * rebound.averageCorrection;
+          point.displacement -= average * physics.averageCorrection;
         });
       }
     };
@@ -322,9 +323,9 @@ export default function Home() {
       const heldFor = motion.held ? now - motion.startedAt : 0;
       const heldPressure = motion.held ? Math.min(1, heldFor / chargeDuration) : 0;
       const target = motion.held ? 0.16 + heldPressure * 0.84 : 0;
-      const rebound = reboundPhysics(settings.rebound);
-      motion.pressureVelocity += (target - motion.pressure) * rebound.pressureSpring * delta;
-      motion.pressureVelocity *= Math.pow(rebound.pressureDamping, delta);
+      const physics = motion.held ? heldPhysics() : reboundPhysics(settings.rebound);
+      motion.pressureVelocity += (target - motion.pressure) * physics.pressureSpring * delta;
+      motion.pressureVelocity *= Math.pow(physics.pressureDamping, delta);
       motion.pressure += motion.pressureVelocity * delta;
       motion.pressure = Math.max(-0.12, Math.min(1.12, motion.pressure));
 

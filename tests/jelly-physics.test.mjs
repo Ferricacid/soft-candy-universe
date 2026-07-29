@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   createCandyMembrane,
+  heldPhysics,
   limitPointerReach,
   polygonArea,
   radialInfluence,
@@ -80,4 +81,14 @@ test("makes the lowest rebound setting dramatically slower than the highest", ()
   assert.ok(slow.pressureDamping > fast.pressureDamping);
   assert.ok(settlingFrames(slow) > 300);
   assert.ok(settlingFrames(fast) < 60);
+});
+
+test("keeps press support stable instead of weakening it with rebound speed", () => {
+  const held = heldPhysics();
+  const slowRelease = reboundPhysics(1);
+
+  assert.ok(held.membraneSpring > slowRelease.membraneSpring * 100);
+  assert.ok(held.areaPressure > slowRelease.areaPressure * 70);
+  assert.ok(held.pressureSpring > slowRelease.pressureSpring * 400);
+  assert.equal(held.releaseImpulse, 0);
 });
