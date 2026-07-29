@@ -7,6 +7,15 @@ import {
   type KeyboardEvent,
   type PointerEvent as ReactPointerEvent,
 } from "react";
+import {
+  clamp,
+  createCandyMembrane,
+  polygonArea,
+  radialInfluence,
+  smoothRing,
+  type MembranePoint,
+  type Point,
+} from "./jelly-physics";
 
 type SoundKind = "bubble" | "puff" | "boing" | "off";
 
@@ -17,9 +26,7 @@ type MotionState = {
   pressureVelocity: number;
   pointerX: number;
   pointerY: number;
-  downX: number;
-  downY: number;
-  grabbedIndex: number;
+  pressId: number;
 };
 
 const colorPresets = [
@@ -59,9 +66,7 @@ export default function Home() {
     pressureVelocity: 0,
     pointerX: 0,
     pointerY: 0,
-    downX: 0,
-    downY: 0,
-    grabbedIndex: 0,
+    pressId: 0,
   });
 
   const [rebound, setRebound] = useState(6);
@@ -129,8 +134,11 @@ export default function Home() {
     let frame = 0;
     let previous = performance.now();
     let lastMeter = -1;
-    const pointCount = 52;
-    let basePoints: Array<{ x: number; y: number }> = [];
+    let radiusX = 1;
+    let radiusY = 1;
+    let baseArea = 1;
+    let handledPressId = 0;
+    let membrane: MembranePoint[] = [];
 
     const resize = () => {
       const rect = surface.getBoundingClientRect();
@@ -142,24 +150,15 @@ export default function Home() {
       canvas.style.width = `${width}px`;
       canvas.style.height = `${height}px`;
       context.setTransform(ratio, 0, 0, ratio, 0, 0);
-      basePoints = [];
-      const rx = Math.min(width * 0.33, 220);
-      const ry = Math.min(height * 0.29, 116);
-      for (let index = 0; index < pointCount; index += 1) {
-        const angle = (index / pointCount) * Math.PI * 2;
-        const cosine = Math.cos(angle);
-        const sine = Math.sin(angle);
-        const exponent = 4.3;
-        basePoints.push({
-          x: Math.sign(cosine) * Math.pow(Math.abs(cosine), 2 / exponent) * rx,
-          y: Math.sign(sine) * Math.pow(Math.abs(sine), 2 / exponent) * ry,
-        });
-      }
+      radiusX = Math.min(width * 0.33, 220);
+      radiusY = Math.min(height * 0.29, 116);
+      membrane = createCandyMembrane(radiusX, radiusY);
+      baseArea = polygonArea(membrane);
       motionRef.current.pointerX = width / 2;
-      motionRef.current.pointerY = height / 2;
+      motionRef.current.pointerY = height / 2 - 2;
     };
 
-    const roundedPath = (points: Array<{ x: number; y: number }>) => {
+    const roundedPath = (points: Point[]) => {
       context.beginPath();
       const last = points[points.length - 1];
       context.moveTo((last.x + points[0].x) / 2, (last.y + points[0].y) / 2);
@@ -171,8 +170,150 @@ export default function Home() {
       context.closePath();
     };
 
+    const pointerState = (motion: MotionState, centerX: number, centerY: number) => {
+      const x = motion.pointerX - centerX;
+      const y = motion.pointerY - centerY;
+      const exponent = 4.3;
+      const insideMetric = (
+        Math.pow(Math.abs(x) / radiusX, exponent)
+        + Math.pow(Math.abs(y) / radiusY, exponent)
+      );
+      return {
+        x,
+        y,
+        insideWeight: motion.held ? clamp((1.12 - insideMetric) / 0.14, 0, 1) : 0,
+      };
+    };
+
+    const heldOffsets = (motion: MotionState, pressure: number, centerX: number, centerY: number) => {
+      const pointer = pointerState(motion, centerX, centerY);
+      const shapeScale = Math.max(0.72, radiusY / 27);
+      const holdAmount = pointer.insideWeight * (0.28 + pressure * 0.72);
+      const bulgeAmount = 10.8 * shapeScale * 0.9;
+      const haloAmount = bulgeAmount * (2.65 / 10.8);
+      const localWidth = radiusY * (38 / 27);
+      const haloWidth = radiusY * (70 / 27);
+
+      return membrane.map((point) => {
+        const influence = radialInfluence(
+          point,
+          pointer.x,
+          pointer.y,
+          radiusX,
+          radiusY,
+          localWidth,
+          haloWidth,
+        );
+        return holdAmount * (bulgeAmount * influence.local - haloAmount * influence.halo);
+      });
+    };
+
+    const surfacePoints = (offsets: number[]) => {
+      const displacement = membrane.map((point) => point.displacement);
+      const smoothedDisplacement = displacement.map((_, index) => smoothRing(displacement, index));
+      const total = smoothedDisplacement.map((value, index) => value + offsets[index]);
+      const smoothedTotal = total.map((_, index) => smoothRing(total, index));
+
+      return membrane.map((point, index) => {
+        const previous = smoothedTotal[(index - 1 + membrane.length) % membrane.length];
+        const next = smoothedTotal[(index + 1) % membrane.length];
+        const tangentSlide = (next - previous) * 0.05;
+        return {
+          x: point.x + point.nx * smoothedTotal[index] - point.ny * tangentSlide,
+          y: point.y + point.ny * smoothedTotal[index] + point.nx * tangentSlide,
+        };
+      });
+    };
+
+    const applyPressImpulse = (motion: MotionState, centerX: number, centerY: number) => {
+      if (!motion.held || motion.pressId === handledPressId) return;
+      handledPressId = motion.pressId;
+      const pointer = pointerState(motion, centerX, centerY);
+      const localWidth = radiusY * (38 / 27);
+      const haloWidth = radiusY * (70 / 27);
+
+      membrane.forEach((point) => {
+        const influence = radialInfluence(
+          point,
+          pointer.x,
+          pointer.y,
+          radiusX,
+          radiusY,
+          localWidth,
+          haloWidth,
+        );
+        point.velocity += 430 * pointer.insideWeight * (influence.local - influence.halo * 0.18);
+        point.velocity = clamp(point.velocity, -410, 410);
+      });
+    };
+
+    const updateMembrane = (
+      elapsed: number,
+      motion: MotionState,
+      pressure: number,
+      settings: typeof settingsRef.current,
+      centerX: number,
+      centerY: number,
+    ) => {
+      const steps = Math.max(1, Math.ceil(elapsed / (1 / 58)));
+      const step = elapsed / steps;
+      const shapeScale = Math.max(0.72, radiusY / 27);
+      const membraneSpring = 54 + settings.rebound * 7;
+      const membraneDamping = 20 - settings.rebound * 0.65;
+      const waveCoupling = 90 + settings.rebound * 9;
+      const localWidth = radiusY * (38 / 27);
+      const haloWidth = radiusY * (70 / 27);
+
+      for (let substep = 0; substep < steps; substep += 1) {
+        const offsets = heldOffsets(motion, pressure, centerX, centerY);
+        const area = polygonArea(surfacePoints(offsets));
+        const areaError = clamp((baseArea - area) / baseArea, -0.08, 0.08);
+        const pointer = pointerState(motion, centerX, centerY);
+        const acceleration = membrane.map((point, index) => {
+          const previousPoint = membrane[(index - 1 + membrane.length) % membrane.length];
+          const nextPoint = membrane[(index + 1) % membrane.length];
+          const laplacian = previousPoint.displacement + nextPoint.displacement - 2 * point.displacement;
+          let value = (
+            -point.displacement * membraneSpring
+            + laplacian * waveCoupling
+            - point.velocity * membraneDamping
+            + areaError * 620
+          );
+
+          if (pointer.insideWeight > 0.02) {
+            const influence = radialInfluence(
+              point,
+              pointer.x,
+              pointer.y,
+              radiusX,
+              radiusY,
+              localWidth,
+              haloWidth,
+            );
+            value += 48 * shapeScale * pointer.insideWeight * (
+              influence.local - influence.halo * 0.18
+            );
+          }
+          return value;
+        });
+
+        membrane.forEach((point, index) => {
+          point.velocity += acceleration[index] * step;
+          point.displacement += point.velocity * step;
+          point.displacement = clamp(point.displacement, -8 * shapeScale, 24 * shapeScale);
+          point.velocity = clamp(point.velocity, -410, 410);
+        });
+
+        const average = membrane.reduce((sum, point) => sum + point.displacement, 0) / membrane.length;
+        membrane.forEach((point) => {
+          point.displacement -= average * 0.1;
+        });
+      }
+    };
+
     const draw = (now: number) => {
-      const delta = Math.min(2, (now - previous) / 16.67);
+      const elapsed = Math.min(0.033, (now - previous) / 1000);
+      const delta = elapsed * 60;
       previous = now;
       const motion = motionRef.current;
       const settings = settingsRef.current;
@@ -197,30 +338,13 @@ export default function Home() {
       const centerX = width / 2;
       const centerY = height / 2 - 2;
       const pressure = Math.max(0, motion.pressure);
-      const dragX = motion.held ? (motion.pointerX - motion.downX) / Math.max(width, 1) : 0;
-      const dragY = motion.held ? (motion.pointerY - motion.downY) / Math.max(height, 1) : 0;
-      const points = basePoints.map((point, index) => {
-        const ringDistance = Math.min(
-          Math.abs(index - motion.grabbedIndex),
-          pointCount - Math.abs(index - motion.grabbedIndex),
-        );
-        const local = Math.exp(-(ringDistance * ringDistance) / 16) * pressure;
-        const targetX = motion.pointerX - centerX;
-        const targetY = motion.pointerY - centerY;
-        const centralPress = Math.hypot(targetX, targetY) < 42;
-        const dent = centralPress ? 0.08 : 0.22;
-        return {
-          x: centerX
-            + point.x * (1 + pressure * 0.12)
-            + targetX * local * dent
-            + dragX * Math.abs(point.y) * 0.7,
-          y: centerY
-            + point.y * (1 - pressure * 0.3)
-            + pressure * 22
-            + targetY * local * dent
-            + dragY * Math.abs(point.x) * 0.35,
-        };
-      });
+      applyPressImpulse(motion, centerX, centerY);
+      updateMembrane(elapsed, motion, pressure, settings, centerX, centerY);
+      const localSurface = surfacePoints(heldOffsets(motion, pressure, centerX, centerY));
+      const points = localSurface.map((point) => ({ x: centerX + point.x, y: centerY + point.y }));
+      const pointer = pointerState(motion, centerX, centerY);
+      const textX = motion.held ? clamp(pointer.x / radiusX, -1, 1) : 0;
+      const textY = motion.held ? clamp(pointer.y / radiusY, -1, 1) : 0;
 
       context.save();
       context.filter = "blur(16px)";
@@ -259,12 +383,15 @@ export default function Home() {
       context.fillRect(0, centerY, width, 150);
 
       context.save();
-      context.translate(centerX + dragX * pressure * 64, centerY + 10 + pressure * 13);
+      context.translate(
+        centerX + textX * pressure * 24,
+        centerY + 10 + pressure * 10 + textY * pressure * 12,
+      );
       context.transform(
-        1 + pressure * 0.11,
-        dragY * pressure * 0.5,
-        dragX * pressure * 0.55,
-        1 - pressure * 0.29,
+        1 + pressure * 0.08,
+        textY * pressure * 0.18,
+        textX * pressure * 0.22,
+        1 - pressure * 0.2,
         0,
         0,
       );
@@ -307,18 +434,26 @@ export default function Home() {
   };
 
   const beginPress = (x: number, y: number, width: number, height: number) => {
+    const radiusX = Math.min(width * 0.33, 220);
+    const radiusY = Math.min(height * 0.29, 116);
+    const localX = x - width / 2;
+    const localY = y - (height / 2 - 2);
+    const insideMetric = (
+      Math.pow(Math.abs(localX) / radiusX, 4.3)
+      + Math.pow(Math.abs(localY) / radiusY, 4.3)
+    );
+    if (insideMetric > 1.08) return false;
+
     const motion = motionRef.current;
     motion.held = true;
     motion.startedAt = performance.now();
     motion.pointerX = x;
     motion.pointerY = y;
-    motion.downX = x;
-    motion.downY = y;
-    const angle = Math.atan2(y - height / 2, x - width / 2);
-    motion.grabbedIndex = Math.round((((angle + Math.PI * 2) % (Math.PI * 2)) / (Math.PI * 2)) * 52) % 52;
+    motion.pressId += 1;
     setHolding(true);
     playSound("press", 0.35);
     navigator.vibrate?.(8);
+    return true;
   };
 
   const releasePress = () => {
@@ -335,7 +470,7 @@ export default function Home() {
 
   const handlePointerDown = (event: ReactPointerEvent<HTMLButtonElement>) => {
     const point = localPointer(event);
-    beginPress(point.x, point.y, point.width, point.height);
+    if (!beginPress(point.x, point.y, point.width, point.height)) return;
     event.currentTarget.setPointerCapture(event.pointerId);
   };
 
