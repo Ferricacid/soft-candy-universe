@@ -92,38 +92,59 @@ export default function Home() {
     const audio = audioRef.current ?? new AudioContextClass();
     audioRef.current = audio;
     const now = audio.currentTime;
-    const oscillator = audio.createOscillator();
     const gain = audio.createGain();
     const filter = audio.createBiquadFilter();
     const volume = 0.16 + strength * 0.28;
+    let source: OscillatorNode | AudioBufferSourceNode;
+    let duration = 0.22;
+    let peakVolume = volume;
 
     if (sound === "bubble") {
+      const oscillator = audio.createOscillator();
       oscillator.type = "sine";
       oscillator.frequency.setValueAtTime(phase === "press" ? 170 : 260 + strength * 100, now);
       oscillator.frequency.exponentialRampToValueAtTime(phase === "press" ? 82 : 520, now + 0.13);
       filter.type = "lowpass";
       filter.frequency.value = 900;
+      source = oscillator;
     } else if (sound === "puff") {
-      oscillator.type = "triangle";
-      oscillator.frequency.setValueAtTime(phase === "press" ? 95 : 135, now);
-      oscillator.frequency.exponentialRampToValueAtTime(55, now + 0.18);
+      duration = 0.28;
+      peakVolume = Math.min(0.72, volume * 1.15);
+      const noise = audio.createBufferSource();
+      const buffer = audio.createBuffer(1, Math.ceil(audio.sampleRate * duration), audio.sampleRate);
+      const channel = buffer.getChannelData(0);
+      for (let index = 0; index < channel.length; index += 1) {
+        const progress = index / channel.length;
+        channel[index] = (Math.random() * 2 - 1) * (1 - progress * 0.35);
+      }
+      noise.buffer = buffer;
       filter.type = "lowpass";
-      filter.frequency.value = 360;
+      filter.frequency.setValueAtTime(900, now);
+      filter.frequency.exponentialRampToValueAtTime(280, now + duration * 0.82);
+      filter.Q.value = 0.65;
+      source = noise;
     } else {
-      oscillator.type = "sine";
-      oscillator.frequency.setValueAtTime(phase === "press" ? 120 : 180, now);
-      oscillator.frequency.exponentialRampToValueAtTime(phase === "press" ? 70 : 760, now + 0.2);
+      duration = 0.3;
+      peakVolume = Math.min(0.72, volume * 1.1);
+      const oscillator = audio.createOscillator();
+      const startFrequency = phase === "press" ? 230 : 280 + strength * 40;
+      const endFrequency = phase === "press" ? 115 : 760;
+      oscillator.type = "triangle";
+      oscillator.frequency.setValueAtTime(startFrequency, now);
+      oscillator.frequency.exponentialRampToValueAtTime(endFrequency, now + 0.22);
       filter.type = "bandpass";
-      filter.frequency.value = 620;
-      filter.Q.value = 1.5;
+      filter.frequency.setValueAtTime(startFrequency, now);
+      filter.frequency.exponentialRampToValueAtTime(endFrequency, now + 0.22);
+      filter.Q.value = 0.75;
+      source = oscillator;
     }
 
     gain.gain.setValueAtTime(0.0001, now);
-    gain.gain.exponentialRampToValueAtTime(volume, now + 0.012);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.2);
-    oscillator.connect(filter).connect(gain).connect(audio.destination);
-    oscillator.start(now);
-    oscillator.stop(now + 0.22);
+    gain.gain.exponentialRampToValueAtTime(peakVolume, now + (sound === "puff" ? 0.006 : 0.012));
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + duration - 0.02);
+    source.connect(filter).connect(gain).connect(audio.destination);
+    source.start(now);
+    source.stop(now + duration);
   };
 
   useEffect(() => {
