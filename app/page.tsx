@@ -8,6 +8,7 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import {
+  chargeDurationMs,
   clamp,
   createCandyMembrane,
   heldPhysics,
@@ -376,7 +377,7 @@ export default function Home() {
       previous = now;
       const motion = motionRef.current;
       const settings = settingsRef.current;
-      const chargeDuration = 1900 - settings.charge * 145;
+      const chargeDuration = chargeDurationMs(settings.charge);
       const heldFor = motion.held ? now - motion.startedAt : 0;
       const heldPressure = motion.held ? Math.min(1, heldFor / chargeDuration) : 0;
       const target = motion.held ? 0.16 + heldPressure * 0.84 : 0;
@@ -526,7 +527,7 @@ export default function Home() {
   const releasePress = () => {
     const motion = motionRef.current;
     if (!motion.held) return;
-    const strength = Math.max(0.15, Math.min(1, (performance.now() - motion.startedAt) / (1900 - charge * 145)));
+    const strength = Math.max(0.15, Math.min(1, (performance.now() - motion.startedAt) / chargeDurationMs(charge)));
     motion.held = false;
     motion.pressureVelocity -= reboundPhysics(rebound).releaseImpulse * strength;
     setHolding(false);

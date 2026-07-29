@@ -40,6 +40,13 @@ export function clamp(value: number, minimum: number, maximum: number) {
   return Math.min(maximum, Math.max(minimum, value));
 }
 
+export function chargeDurationMs(level: number) {
+  const normalized = clamp((level - 1) / 9, 0, 1);
+  const slowest = 4200;
+  const fastest = 220;
+  return slowest * Math.pow(fastest / slowest, normalized);
+}
+
 export function limitPointerReach(
   pointerX: number,
   pointerY: number,

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  chargeDurationMs,
   createCandyMembrane,
   heldPhysics,
   limitPointerReach,
@@ -117,5 +118,17 @@ test("muscle overload increases monotonically across every slider step", () => {
   const overload = Array.from({ length: 10 }, (_, index) => heldPhysics(index + 1).overload);
   for (let index = 1; index < overload.length; index += 1) {
     assert.ok(overload[index] > overload[index - 1]);
+  }
+});
+
+test("charge speed spans a clearly differentiated exponential range", () => {
+  const duration = Array.from({ length: 10 }, (_, index) => chargeDurationMs(index + 1));
+
+  assert.equal(duration[0], 4200);
+  assert.ok(Math.abs(duration[9] - 220) < 1e-10);
+  assert.ok(duration[4] > 1050 && duration[4] < 1250);
+  assert.ok(duration[0] / duration[9] > 19);
+  for (let index = 1; index < duration.length; index += 1) {
+    assert.ok(duration[index] < duration[index - 1]);
   }
 });
