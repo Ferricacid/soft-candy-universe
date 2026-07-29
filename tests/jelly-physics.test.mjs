@@ -5,7 +5,6 @@ import {
   createCandyMembrane,
   heldPhysics,
   limitPointerReach,
-  muscleForce,
   polygonArea,
   radialInfluence,
   reboundPhysics,
@@ -85,7 +84,7 @@ test("makes the lowest rebound setting dramatically slower than the highest", ()
 });
 
 test("keeps press support stable instead of weakening it with rebound speed", () => {
-  const held = heldPhysics();
+  const held = heldPhysics(1);
   const slowRelease = reboundPhysics(1);
 
   assert.ok(held.membraneSpring > slowRelease.membraneSpring * 100);
@@ -94,13 +93,19 @@ test("keeps press support stable instead of weakening it with rebound speed", ()
   assert.equal(held.releaseImpulse, 0);
 });
 
-test("muscle level changes user force without changing the candy body", () => {
-  const weak = muscleForce(1);
-  const giant = muscleForce(10);
+test("muscle level progresses from weak input to the former overload bug", () => {
+  const weak = heldPhysics(1);
+  const giant = heldPhysics(10);
 
-  assert.ok(weak > 0);
-  assert.ok(weak < 0.25);
-  assert.equal(giant, 3);
-  assert.ok(giant > weak * 12);
-  assert.deepEqual(heldPhysics(), heldPhysics());
+  assert.equal(weak.inputGain, 0.28);
+  assert.equal(weak.overload, 0);
+  assert.equal(giant.inputGain, 1);
+  assert.equal(giant.overload, 1);
+  assert.ok(Math.abs(giant.membraneSpring - 0.5) < 1e-10);
+  assert.ok(Math.abs(giant.membraneDamping - 1.4) < 1e-10);
+  assert.ok(Math.abs(giant.waveCoupling - 8) < 1e-10);
+  assert.ok(Math.abs(giant.areaPressure - 8) < 1e-10);
+  assert.ok(Math.abs(giant.averageCorrection - 0.004) < 1e-10);
+  assert.equal(giant.pressureSpring, weak.pressureSpring);
+  assert.equal(giant.pressureDamping, weak.pressureDamping);
 });

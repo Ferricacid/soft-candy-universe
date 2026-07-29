@@ -31,6 +31,11 @@ export type ReboundPhysics = {
   releaseImpulse: number;
 };
 
+export type HeldPhysics = ReboundPhysics & {
+  inputGain: number;
+  overload: number;
+};
+
 export function clamp(value: number, minimum: number, maximum: number) {
   return Math.min(maximum, Math.max(minimum, value));
 }
@@ -70,23 +75,23 @@ export function reboundPhysics(level: number): ReboundPhysics {
   };
 }
 
-export function heldPhysics(): ReboundPhysics {
+export function heldPhysics(level = 6): HeldPhysics {
+  const normalized = clamp((level - 1) / 9, 0, 1);
+  const overload = Math.pow(normalized, 3.2);
+
   return {
     pace: 1,
-    membraneSpring: 96,
-    membraneDamping: 16.1,
-    waveCoupling: 144,
-    areaPressure: 620,
-    averageCorrection: 0.1,
+    membraneSpring: 110 + (0.5 - 110) * overload,
+    membraneDamping: 17 + (1.4 - 17) * overload,
+    waveCoupling: 160 + (8 - 160) * overload,
+    areaPressure: 650 + (8 - 650) * overload,
+    averageCorrection: 0.105 + (0.004 - 0.105) * overload,
     pressureSpring: 0.071,
     pressureDamping: 0.718,
     releaseImpulse: 0,
+    inputGain: 0.28 + Math.pow(normalized, 1.5) * 0.72,
+    overload,
   };
-}
-
-export function muscleForce(level: number) {
-  const normalized = clamp((level - 1) / 9, 0, 1);
-  return 0.22 + Math.pow(normalized, 2.3) * 2.78;
 }
 
 function gaussian(distance: number, width: number) {

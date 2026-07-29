@@ -12,7 +12,6 @@ import {
   createCandyMembrane,
   heldPhysics,
   limitPointerReach,
-  muscleForce,
   polygonArea,
   radialInfluence,
   reboundPhysics,
@@ -191,12 +190,11 @@ export default function Home() {
       };
     };
 
-    const heldOffsets = (motion: MotionState, pressure: number, muscle: number, centerX: number, centerY: number) => {
+    const heldOffsets = (motion: MotionState, pressure: number, inputGain: number, centerX: number, centerY: number) => {
       const pointer = pointerState(motion, centerX, centerY);
       const shapeScale = Math.max(0.72, radiusY / 27);
-      const holdAmount = pointer.insideWeight * (0.28 + pressure * 0.72);
-      const force = muscleForce(muscle);
-      const deformationScale = Math.min(force * (1 + pointer.stretch * 1.45), 5.2);
+      const holdAmount = inputGain * pointer.insideWeight * (0.28 + pressure * 0.72);
+      const deformationScale = 1 + pointer.stretch * 1.45;
       const bulgeAmount = 10.8 * shapeScale * 0.9 * deformationScale;
       const haloAmount = bulgeAmount * (2.65 / 10.8);
       const localWidth = radiusY * (38 / 27);
@@ -233,7 +231,7 @@ export default function Home() {
       });
     };
 
-    const applyPressImpulse = (motion: MotionState, muscle: number, centerX: number, centerY: number) => {
+    const applyPressImpulse = (motion: MotionState, inputGain: number, centerX: number, centerY: number) => {
       if (!motion.held || motion.pressId === handledPressId) return;
       handledPressId = motion.pressId;
       const pointer = pointerState(motion, centerX, centerY);
@@ -250,7 +248,7 @@ export default function Home() {
           localWidth,
           haloWidth,
         );
-        point.velocity += 150 * muscleForce(muscle) * pointer.insideWeight * (influence.local - influence.halo * 0.18);
+        point.velocity += 430 * inputGain * pointer.insideWeight * (influence.local - influence.halo * 0.18);
         point.velocity = clamp(point.velocity, -410, 410);
       });
     };
@@ -266,13 +264,13 @@ export default function Home() {
       const steps = Math.max(1, Math.ceil(elapsed / (1 / 58)));
       const step = elapsed / steps;
       const shapeScale = Math.max(0.72, radiusY / 27);
-      const physics = motion.held ? heldPhysics() : reboundPhysics(settings.rebound);
-      const force = muscleForce(settings.muscle);
+      const held = heldPhysics(settings.muscle);
+      const physics = motion.held ? held : reboundPhysics(settings.rebound);
       const localWidth = radiusY * (38 / 27);
       const haloWidth = radiusY * (70 / 27);
 
       for (let substep = 0; substep < steps; substep += 1) {
-        const offsets = heldOffsets(motion, pressure, settings.muscle, centerX, centerY);
+        const offsets = heldOffsets(motion, pressure, held.inputGain, centerX, centerY);
         const area = polygonArea(surfacePoints(offsets));
         const areaError = clamp((baseArea - area) / baseArea, -0.08, 0.08);
         const pointer = pointerState(motion, centerX, centerY);
@@ -297,7 +295,7 @@ export default function Home() {
               localWidth,
               haloWidth,
             );
-            value += 48 * shapeScale * force * pointer.insideWeight * (
+            value += 48 * shapeScale * held.inputGain * pointer.insideWeight * (
               influence.local - influence.halo * 0.18
             );
           }
@@ -307,7 +305,7 @@ export default function Home() {
         membrane.forEach((point, index) => {
           point.velocity += acceleration[index] * step;
           point.displacement += point.velocity * step;
-          point.displacement = clamp(point.displacement, -8 * shapeScale, 36 * shapeScale);
+          point.displacement = clamp(point.displacement, -8 * shapeScale, 24 * shapeScale);
           point.velocity = clamp(point.velocity, -410, 410);
         });
 
@@ -328,7 +326,8 @@ export default function Home() {
       const heldFor = motion.held ? now - motion.startedAt : 0;
       const heldPressure = motion.held ? Math.min(1, heldFor / chargeDuration) : 0;
       const target = motion.held ? 0.16 + heldPressure * 0.84 : 0;
-      const physics = motion.held ? heldPhysics() : reboundPhysics(settings.rebound);
+      const held = heldPhysics(settings.muscle);
+      const physics = motion.held ? held : reboundPhysics(settings.rebound);
       motion.pressureVelocity += (target - motion.pressure) * physics.pressureSpring * delta;
       motion.pressureVelocity *= Math.pow(physics.pressureDamping, delta);
       motion.pressure += motion.pressureVelocity * delta;
@@ -344,8 +343,8 @@ export default function Home() {
       const centerX = width / 2;
       const centerY = height / 2 - 2;
       const pressure = Math.max(0, motion.pressure);
-      applyPressImpulse(motion, settings.muscle, centerX, centerY);
-      const currentHeldOffsets = heldOffsets(motion, pressure, settings.muscle, centerX, centerY);
+      applyPressImpulse(motion, held.inputGain, centerX, centerY);
+      const currentHeldOffsets = heldOffsets(motion, pressure, held.inputGain, centerX, centerY);
       if (motion.held) {
         lastHeldOffsets = currentHeldOffsets;
         wasHeld = true;
@@ -355,7 +354,7 @@ export default function Home() {
           point.displacement = clamp(
             point.displacement + (lastHeldOffsets[index] ?? 0),
             -8 * shapeScale,
-            36 * shapeScale,
+            24 * shapeScale,
           );
         });
         lastHeldOffsets = [];
