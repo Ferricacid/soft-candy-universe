@@ -108,20 +108,22 @@ export default function Home() {
       filter.frequency.value = 900;
       source = oscillator;
     } else if (sound === "puff") {
-      duration = 0.28;
-      peakVolume = Math.min(0.72, volume * 1.15);
+      duration = 0.36;
+      peakVolume = Math.min(0.72, volume * 0.78);
       const noise = audio.createBufferSource();
       const buffer = audio.createBuffer(1, Math.ceil(audio.sampleRate * duration), audio.sampleRate);
       const channel = buffer.getChannelData(0);
       for (let index = 0; index < channel.length; index += 1) {
         const progress = index / channel.length;
-        channel[index] = (Math.random() * 2 - 1) * (1 - progress * 0.35);
+        const softAttack = Math.min(1, progress / 0.1);
+        const softTail = Math.pow(1 - progress, 0.45);
+        channel[index] = (Math.random() * 2 - 1) * softAttack * softTail;
       }
       noise.buffer = buffer;
-      filter.type = "lowpass";
-      filter.frequency.setValueAtTime(900, now);
-      filter.frequency.exponentialRampToValueAtTime(280, now + duration * 0.82);
-      filter.Q.value = 0.65;
+      filter.type = "bandpass";
+      filter.frequency.setValueAtTime(420, now);
+      filter.frequency.exponentialRampToValueAtTime(260, now + duration * 0.82);
+      filter.Q.value = 0.55;
       source = noise;
     } else {
       duration = 0.3;
@@ -140,7 +142,7 @@ export default function Home() {
     }
 
     gain.gain.setValueAtTime(0.0001, now);
-    gain.gain.exponentialRampToValueAtTime(peakVolume, now + (sound === "puff" ? 0.006 : 0.012));
+    gain.gain.exponentialRampToValueAtTime(peakVolume, now + (sound === "puff" ? 0.035 : 0.012));
     gain.gain.exponentialRampToValueAtTime(0.0001, now + duration - 0.02);
     source.connect(filter).connect(gain).connect(audio.destination);
     source.start(now);
