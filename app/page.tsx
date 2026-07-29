@@ -95,7 +95,7 @@ export default function Home() {
     const oscillator = audio.createOscillator();
     const gain = audio.createGain();
     const filter = audio.createBiquadFilter();
-    const volume = 0.025 + strength * 0.045;
+    const volume = 0.04 + strength * 0.07;
 
     if (sound === "bubble") {
       oscillator.type = "sine";
