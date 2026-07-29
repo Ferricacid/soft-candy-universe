@@ -95,12 +95,15 @@ test("keeps press support stable instead of weakening it with rebound speed", ()
 
 test("muscle level progresses from weak input to the former overload bug", () => {
   const weak = heldPhysics(1);
+  const almostGiant = heldPhysics(9);
   const giant = heldPhysics(10);
 
   assert.equal(weak.inputGain, 0.28);
   assert.equal(weak.overload, 0);
   assert.equal(giant.inputGain, 1);
   assert.equal(giant.overload, 1);
+  assert.ok(almostGiant.overload >= 0.93);
+  assert.ok(giant.overload - almostGiant.overload <= 0.071);
   assert.ok(Math.abs(giant.membraneSpring - 0.5) < 1e-10);
   assert.ok(Math.abs(giant.membraneDamping - 1.4) < 1e-10);
   assert.ok(Math.abs(giant.waveCoupling - 8) < 1e-10);
@@ -108,4 +111,11 @@ test("muscle level progresses from weak input to the former overload bug", () =>
   assert.ok(Math.abs(giant.averageCorrection - 0.004) < 1e-10);
   assert.equal(giant.pressureSpring, weak.pressureSpring);
   assert.equal(giant.pressureDamping, weak.pressureDamping);
+});
+
+test("muscle overload increases monotonically across every slider step", () => {
+  const overload = Array.from({ length: 10 }, (_, index) => heldPhysics(index + 1).overload);
+  for (let index = 1; index < overload.length; index += 1) {
+    assert.ok(overload[index] > overload[index - 1]);
+  }
 });

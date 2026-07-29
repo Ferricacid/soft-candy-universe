@@ -77,7 +77,12 @@ export function reboundPhysics(level: number): ReboundPhysics {
 
 export function heldPhysics(level = 6): HeldPhysics {
   const normalized = clamp((level - 1) / 9, 0, 1);
-  const overload = Math.pow(normalized, 3.2);
+  const levelNine = 8 / 9;
+  const rawOverload = Math.pow(normalized, 3.2);
+  const rawAtNine = Math.pow(levelNine, 3.2);
+  const overload = normalized < levelNine
+    ? rawOverload * (0.93 / rawAtNine)
+    : 0.93 + ((normalized - levelNine) / (1 - levelNine)) * 0.07;
 
   return {
     pace: 1,
