@@ -15,8 +15,30 @@ export type RadialInfluence = {
   halo: number;
 };
 
+export type LimitedPointer = Point & {
+  stretch: number;
+};
+
 export function clamp(value: number, minimum: number, maximum: number) {
   return Math.min(maximum, Math.max(minimum, value));
+}
+
+export function limitPointerReach(
+  pointerX: number,
+  pointerY: number,
+  radiusX: number,
+  radiusY: number,
+  maximumRadius = 1.65,
+): LimitedPointer {
+  const normalizedRadius = Math.hypot(pointerX / radiusX, pointerY / radiusY);
+  const limitedRadius = Math.min(normalizedRadius, maximumRadius);
+  const scale = normalizedRadius > maximumRadius ? maximumRadius / normalizedRadius : 1;
+
+  return {
+    x: pointerX * scale,
+    y: pointerY * scale,
+    stretch: clamp((limitedRadius - 0.55) / (maximumRadius - 0.55), 0, 1),
+  };
 }
 
 function gaussian(distance: number, width: number) {

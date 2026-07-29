@@ -10,6 +10,7 @@ import {
 import {
   clamp,
   createCandyMembrane,
+  limitPointerReach,
   polygonArea,
   radialInfluence,
   smoothRing,
@@ -173,15 +174,14 @@ export default function Home() {
     const pointerState = (motion: MotionState, centerX: number, centerY: number) => {
       const x = motion.pointerX - centerX;
       const y = motion.pointerY - centerY;
-      const exponent = 4.3;
-      const insideMetric = (
-        Math.pow(Math.abs(x) / radiusX, exponent)
-        + Math.pow(Math.abs(y) / radiusY, exponent)
-      );
+      const limited = limitPointerReach(x, y, radiusX, radiusY);
       return {
         x,
         y,
-        insideWeight: motion.held ? clamp((1.12 - insideMetric) / 0.14, 0, 1) : 0,
+        fieldX: limited.x,
+        fieldY: limited.y,
+        stretch: limited.stretch,
+        insideWeight: motion.held ? 1 : 0,
       };
     };
 
@@ -189,7 +189,7 @@ export default function Home() {
       const pointer = pointerState(motion, centerX, centerY);
       const shapeScale = Math.max(0.72, radiusY / 27);
       const holdAmount = pointer.insideWeight * (0.28 + pressure * 0.72);
-      const bulgeAmount = 10.8 * shapeScale * 0.9;
+      const bulgeAmount = 10.8 * shapeScale * 0.9 * (1 + pointer.stretch * 1.45);
       const haloAmount = bulgeAmount * (2.65 / 10.8);
       const localWidth = radiusY * (38 / 27);
       const haloWidth = radiusY * (70 / 27);
@@ -197,8 +197,8 @@ export default function Home() {
       return membrane.map((point) => {
         const influence = radialInfluence(
           point,
-          pointer.x,
-          pointer.y,
+          pointer.fieldX,
+          pointer.fieldY,
           radiusX,
           radiusY,
           localWidth,
@@ -235,8 +235,8 @@ export default function Home() {
       membrane.forEach((point) => {
         const influence = radialInfluence(
           point,
-          pointer.x,
-          pointer.y,
+          pointer.fieldX,
+          pointer.fieldY,
           radiusX,
           radiusY,
           localWidth,
@@ -283,8 +283,8 @@ export default function Home() {
           if (pointer.insideWeight > 0.02) {
             const influence = radialInfluence(
               point,
-              pointer.x,
-              pointer.y,
+              pointer.fieldX,
+              pointer.fieldY,
               radiusX,
               radiusY,
               localWidth,
@@ -343,8 +343,8 @@ export default function Home() {
       const localSurface = surfacePoints(heldOffsets(motion, pressure, centerX, centerY));
       const points = localSurface.map((point) => ({ x: centerX + point.x, y: centerY + point.y }));
       const pointer = pointerState(motion, centerX, centerY);
-      const textX = motion.held ? clamp(pointer.x / radiusX, -1, 1) : 0;
-      const textY = motion.held ? clamp(pointer.y / radiusY, -1, 1) : 0;
+      const textX = motion.held ? clamp(pointer.fieldX / radiusX, -1, 1) : 0;
+      const textY = motion.held ? clamp(pointer.fieldY / radiusY, -1, 1) : 0;
 
       context.save();
       context.filter = "blur(16px)";
