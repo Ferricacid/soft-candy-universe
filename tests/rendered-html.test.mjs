@@ -22,5 +22,6 @@ test("renders the soft-candy playground instead of starter content", async () =>
   assert.match(html, /<title>软糖小宇宙｜捏一块属于你的软糖<\/title>/);
   assert.match(html, /软糖小宇宙/);
   assert.match(html, /捏一块/);
+  assert.match(html, /肌肉等级/);
   assert.doesNotMatch(html, /codex-preview|react-loading-skeleton|Your site is taking shape/i);
 });

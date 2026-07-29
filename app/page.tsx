@@ -61,7 +61,7 @@ export default function Home() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const surfaceRef = useRef<HTMLButtonElement>(null);
   const audioRef = useRef<AudioContext | null>(null);
-  const settingsRef = useRef({ rebound: 6, charge: 5, color: "#ff72aa", text: "今天也软软的" });
+  const settingsRef = useRef({ rebound: 6, muscle: 6, charge: 5, color: "#ff72aa", text: "今天也软软的" });
   const motionRef = useRef<MotionState>({
     held: false,
     startedAt: 0,
@@ -73,6 +73,7 @@ export default function Home() {
   });
 
   const [rebound, setRebound] = useState(6);
+  const [muscle, setMuscle] = useState(6);
   const [charge, setCharge] = useState(5);
   const [color, setColor] = useState("#ff72aa");
   const [label, setLabel] = useState("今天也软软的");
@@ -81,8 +82,8 @@ export default function Home() {
   const [chargeLevel, setChargeLevel] = useState(0);
 
   useEffect(() => {
-    settingsRef.current = { rebound, charge, color, text: label || " " };
-  }, [rebound, charge, color, label]);
+    settingsRef.current = { rebound, muscle, charge, color, text: label || " " };
+  }, [rebound, muscle, charge, color, label]);
 
   const playSound = (phase: "press" | "release", strength = 0.5) => {
     if (sound === "off") return;
@@ -262,7 +263,7 @@ export default function Home() {
       const steps = Math.max(1, Math.ceil(elapsed / (1 / 58)));
       const step = elapsed / steps;
       const shapeScale = Math.max(0.72, radiusY / 27);
-      const physics = motion.held ? heldPhysics() : reboundPhysics(settings.rebound);
+      const physics = motion.held ? heldPhysics(settings.muscle) : reboundPhysics(settings.rebound);
       const localWidth = radiusY * (38 / 27);
       const haloWidth = radiusY * (70 / 27);
 
@@ -323,7 +324,7 @@ export default function Home() {
       const heldFor = motion.held ? now - motion.startedAt : 0;
       const heldPressure = motion.held ? Math.min(1, heldFor / chargeDuration) : 0;
       const target = motion.held ? 0.16 + heldPressure * 0.84 : 0;
-      const physics = motion.held ? heldPhysics() : reboundPhysics(settings.rebound);
+      const physics = motion.held ? heldPhysics(settings.muscle) : reboundPhysics(settings.rebound);
       motion.pressureVelocity += (target - motion.pressure) * physics.pressureSpring * delta;
       motion.pressureVelocity *= Math.pow(physics.pressureDamping, delta);
       motion.pressure += motion.pressureVelocity * delta;
@@ -573,6 +574,12 @@ export default function Home() {
             <span className="control-label"><b>回弹速度</b><output>{rebound}</output></span>
             <input type="range" min="1" max="10" value={rebound} onChange={(event) => setRebound(Number(event.target.value))} />
             <span className="range-ends"><i>慢悠悠</i><i>脆弹</i></span>
+          </label>
+
+          <label className="control-block">
+            <span className="control-label"><b>肌肉等级</b><output>{muscle}</output></span>
+            <input type="range" min="1" max="10" value={muscle} onChange={(event) => setMuscle(Number(event.target.value))} />
+            <span className="range-ends"><i>软趴趴</i><i>肌肉果冻</i></span>
           </label>
 
           <label className="control-block">

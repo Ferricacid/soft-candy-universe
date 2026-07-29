@@ -92,3 +92,15 @@ test("keeps press support stable instead of weakening it with rebound speed", ()
   assert.ok(held.pressureSpring > slowRelease.pressureSpring * 400);
   assert.equal(held.releaseImpulse, 0);
 });
+
+test("muscle level changes held coupling without changing press or release timing", () => {
+  const soft = heldPhysics(1);
+  const muscular = heldPhysics(10);
+
+  assert.ok(muscular.waveCoupling > soft.waveCoupling * 4);
+  assert.ok(muscular.membraneSpring > soft.membraneSpring * 2);
+  assert.ok(soft.areaPressure >= 500);
+  assert.equal(muscular.pressureSpring, soft.pressureSpring);
+  assert.equal(muscular.pressureDamping, soft.pressureDamping);
+  assert.equal(muscular.releaseImpulse, soft.releaseImpulse);
+});
