@@ -70,20 +70,23 @@ export function reboundPhysics(level: number): ReboundPhysics {
   };
 }
 
-export function heldPhysics(level = 6): ReboundPhysics {
-  const muscle = clamp((level - 1) / 9, 0, 1);
-
+export function heldPhysics(): ReboundPhysics {
   return {
     pace: 1,
-    membraneSpring: 68 + muscle * 72,
-    membraneDamping: 18 - muscle * 5,
-    waveCoupling: 52 + muscle * 188,
-    areaPressure: 540 + muscle * 160,
-    averageCorrection: 0.085 + muscle * 0.035,
+    membraneSpring: 96,
+    membraneDamping: 16.1,
+    waveCoupling: 144,
+    areaPressure: 620,
+    averageCorrection: 0.1,
     pressureSpring: 0.071,
     pressureDamping: 0.718,
     releaseImpulse: 0,
   };
+}
+
+export function muscleForce(level: number) {
+  const normalized = clamp((level - 1) / 9, 0, 1);
+  return 0.22 + Math.pow(normalized, 2.3) * 2.78;
 }
 
 function gaussian(distance: number, width: number) {

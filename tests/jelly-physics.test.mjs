@@ -5,6 +5,7 @@ import {
   createCandyMembrane,
   heldPhysics,
   limitPointerReach,
+  muscleForce,
   polygonArea,
   radialInfluence,
   reboundPhysics,
@@ -93,14 +94,13 @@ test("keeps press support stable instead of weakening it with rebound speed", ()
   assert.equal(held.releaseImpulse, 0);
 });
 
-test("muscle level changes held coupling without changing press or release timing", () => {
-  const soft = heldPhysics(1);
-  const muscular = heldPhysics(10);
+test("muscle level changes user force without changing the candy body", () => {
+  const weak = muscleForce(1);
+  const giant = muscleForce(10);
 
-  assert.ok(muscular.waveCoupling > soft.waveCoupling * 4);
-  assert.ok(muscular.membraneSpring > soft.membraneSpring * 2);
-  assert.ok(soft.areaPressure >= 500);
-  assert.equal(muscular.pressureSpring, soft.pressureSpring);
-  assert.equal(muscular.pressureDamping, soft.pressureDamping);
-  assert.equal(muscular.releaseImpulse, soft.releaseImpulse);
+  assert.ok(weak > 0);
+  assert.ok(weak < 0.25);
+  assert.equal(giant, 3);
+  assert.ok(giant > weak * 12);
+  assert.deepEqual(heldPhysics(), heldPhysics());
 });
