@@ -92,10 +92,59 @@ export default function Home() {
     const audio = audioRef.current ?? new AudioContextClass();
     audioRef.current = audio;
     const now = audio.currentTime;
+    const volume = 0.16 + strength * 0.28;
+
+    if (sound === "puff") {
+      const duration = 0.72;
+      const master = audio.createGain();
+      const compressor = audio.createDynamicsCompressor();
+      compressor.threshold.value = -12;
+      compressor.knee.value = 10;
+      compressor.ratio.value = 4;
+      compressor.attack.value = 0.003;
+      compressor.release.value = 0.24;
+      master.gain.setValueAtTime(0.0001, now);
+      master.gain.exponentialRampToValueAtTime(Math.min(0.58, volume * 0.82), now + 0.008);
+      master.gain.exponentialRampToValueAtTime(0.0001, now + duration - 0.03);
+      master.connect(compressor).connect(audio.destination);
+
+      const drum = audio.createOscillator();
+      const drumGain = audio.createGain();
+      drum.type = "sine";
+      drum.frequency.setValueAtTime(phase === "press" ? 190 : 225, now);
+      drum.frequency.exponentialRampToValueAtTime(52, now + 0.22);
+      drumGain.gain.setValueAtTime(phase === "press" ? 0.95 : 0.66, now);
+      drumGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.28);
+      drum.connect(drumGain).connect(master);
+
+      const gongFrequency = phase === "press" ? 430 : 520 + strength * 70;
+      const gong = audio.createOscillator();
+      const gongGain = audio.createGain();
+      gong.type = "triangle";
+      gong.frequency.setValueAtTime(gongFrequency, now);
+      gong.frequency.exponentialRampToValueAtTime(gongFrequency * 0.94, now + 0.6);
+      gongGain.gain.setValueAtTime(phase === "press" ? 0.16 : 0.34, now);
+      gongGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.66);
+      gong.connect(gongGain).connect(master);
+
+      const shimmer = audio.createOscillator();
+      const shimmerGain = audio.createGain();
+      shimmer.type = "sine";
+      shimmer.frequency.value = gongFrequency * 1.57;
+      shimmerGain.gain.setValueAtTime(phase === "press" ? 0.08 : 0.16, now);
+      shimmerGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.58);
+      shimmer.connect(shimmerGain).connect(master);
+
+      [drum, gong, shimmer].forEach((source) => {
+        source.start(now);
+        source.stop(now + duration);
+      });
+      return;
+    }
+
     const gain = audio.createGain();
     const filter = audio.createBiquadFilter();
-    const volume = 0.16 + strength * 0.28;
-    let source: OscillatorNode | AudioBufferSourceNode;
+    let source: OscillatorNode;
     let duration = 0.22;
     let peakVolume = volume;
 
@@ -107,24 +156,6 @@ export default function Home() {
       filter.type = "lowpass";
       filter.frequency.value = 900;
       source = oscillator;
-    } else if (sound === "puff") {
-      duration = 0.36;
-      peakVolume = Math.min(0.72, volume * 0.78);
-      const noise = audio.createBufferSource();
-      const buffer = audio.createBuffer(1, Math.ceil(audio.sampleRate * duration), audio.sampleRate);
-      const channel = buffer.getChannelData(0);
-      for (let index = 0; index < channel.length; index += 1) {
-        const progress = index / channel.length;
-        const softAttack = Math.min(1, progress / 0.1);
-        const softTail = Math.pow(1 - progress, 0.45);
-        channel[index] = (Math.random() * 2 - 1) * softAttack * softTail;
-      }
-      noise.buffer = buffer;
-      filter.type = "bandpass";
-      filter.frequency.setValueAtTime(420, now);
-      filter.frequency.exponentialRampToValueAtTime(260, now + duration * 0.82);
-      filter.Q.value = 0.55;
-      source = noise;
     } else {
       duration = 0.3;
       peakVolume = Math.min(0.72, volume * 1.1);
@@ -142,7 +173,7 @@ export default function Home() {
     }
 
     gain.gain.setValueAtTime(0.0001, now);
-    gain.gain.exponentialRampToValueAtTime(peakVolume, now + (sound === "puff" ? 0.035 : 0.012));
+    gain.gain.exponentialRampToValueAtTime(peakVolume, now + 0.012);
     gain.gain.exponentialRampToValueAtTime(0.0001, now + duration - 0.02);
     source.connect(filter).connect(gain).connect(audio.destination);
     source.start(now);
@@ -651,7 +682,7 @@ export default function Home() {
             <span className="control-label"><b>捏下去的声音</b><output>{sound === "off" ? "关闭" : "开启"}</output></span>
             <select className="sound-select" value={sound} onChange={(event) => setSound(event.target.value as SoundKind)}>
               <option value="bubble">啵啵气泡</option>
-              <option value="puff">软噗一声</option>
+              <option value="puff">敲锣打鼓</option>
               <option value="boing">果冻弹簧</option>
               <option value="off">安静模式</option>
             </select>
