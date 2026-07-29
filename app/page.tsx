@@ -34,10 +34,11 @@ type MotionState = {
 };
 
 const colorPresets = [
-  { name: "莓果", value: "#ff72aa" },
-  { name: "葡萄", value: "#9d8cff" },
-  { name: "薄荷", value: "#65d9ae" },
-  { name: "汽水", value: "#ffae69" },
+  { name: "雾蓝", value: "#8e9aaf" },
+  { name: "淡紫", value: "#cbc0d3" },
+  { name: "柔粉", value: "#efd3d7" },
+  { name: "糖霜", value: "#feeafa" },
+  { name: "星雾", value: "#dee2ff" },
 ];
 
 function hexToRgb(hex: string) {
@@ -62,7 +63,7 @@ export default function Home() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const surfaceRef = useRef<HTMLButtonElement>(null);
   const audioRef = useRef<AudioContext | null>(null);
-  const settingsRef = useRef({ rebound: 6, muscle: 6, charge: 5, color: "#ff72aa", text: "今天也软软的" });
+  const settingsRef = useRef({ rebound: 6, muscle: 6, charge: 5, color: "#cbc0d3", text: "今天也软软的" });
   const motionRef = useRef<MotionState>({
     held: false,
     startedAt: 0,
@@ -76,7 +77,7 @@ export default function Home() {
   const [rebound, setRebound] = useState(6);
   const [muscle, setMuscle] = useState(6);
   const [charge, setCharge] = useState(5);
-  const [color, setColor] = useState("#ff72aa");
+  const [color, setColor] = useState("#cbc0d3");
   const [label, setLabel] = useState("今天也软软的");
   const [sound, setSound] = useState<SoundKind>("bubble");
   const [holding, setHolding] = useState(false);
@@ -436,7 +437,7 @@ export default function Home() {
       const body = context.createLinearGradient(centerX - 180, centerY - 105, centerX + 180, centerY + 120);
       body.addColorStop(0, mix(settings.color, [255, 255, 255], 0.46));
       body.addColorStop(0.38, settings.color);
-      body.addColorStop(1, mix(settings.color, [86, 35, 67], 0.4));
+      body.addColorStop(1, mix(settings.color, [79, 88, 112], 0.4));
       context.fillStyle = body;
       context.shadowColor = `${settings.color}88`;
       context.shadowBlur = 28 + pressure * 12;

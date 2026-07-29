@@ -6,6 +6,11 @@
   --blush: #ffcad4;
   --rose: #f4acb7;
   --mauve: #9d8189;
+  --candy-blue: #8e9aaf;
+  --candy-lilac: #cbc0d3;
+  --candy-blush: #efd3d7;
+  --candy-frost: #feeafa;
+  --candy-mist: #dee2ff;
   --ink: #5b4950;
   --muted: #806a72;
   --line: rgba(91, 73, 80, 0.16);
@@ -60,8 +65,8 @@ button { color: inherit; }
   height: 22px;
   display: inline-block;
   border-radius: 48% 55% 45% 58%;
-  background: linear-gradient(145deg, var(--blush), var(--rose) 70%);
-  box-shadow: inset 4px 4px 6px rgba(255,229,217,.68), 0 4px 10px rgba(157,129,137,.28);
+  background: linear-gradient(145deg, var(--candy-frost), var(--candy-lilac) 58%, var(--candy-blue));
+  box-shadow: inset 4px 4px 6px rgba(254,234,250,.72), 0 4px 10px rgba(142,154,175,.3);
   transform: rotate(-8deg);
 }
 
