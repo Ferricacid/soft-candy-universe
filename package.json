@@ -7,7 +7,9 @@
   },
   "scripts": {
     "dev": "vinext dev",
-    "build": "vinext build",
+    "build": "node build-target.mjs",
+    "build:sites": "vinext build",
+    "build:github-pages": "node build-github-pages.mjs",
     "build:netlify": "node build-netlify.mjs",
     "build:vercel": "next build",
     "start": "vinext start",

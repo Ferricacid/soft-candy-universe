@@ -13,6 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export function generateMetadata(): Metadata {
+  const publicBasePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+  const socialImagePath = `${publicBasePath}/og.png`;
   const deploymentUrl =
     process.env.DEPLOY_PRIME_URL ??
     process.env.URL ??
@@ -33,14 +35,15 @@ export function generateMetadata(): Metadata {
       title: "软糖小宇宙",
       description: "给今天一点柔软。",
       type: "website",
-      images: [{ url: "/og.png", width: 1748, height: 912, alt: "软糖小宇宙" }],
+      images: [{ url: socialImagePath, width: 1748, height: 912, alt: "软糖小宇宙" }],
     },
     twitter: {
       card: "summary_large_image",
       title: "软糖小宇宙",
       description: "给今天一点柔软。",
-      images: ["/og.png"],
+      images: [socialImagePath],
     },
+    icons: { icon: `${publicBasePath}/favicon.svg` },
   };
 }
 

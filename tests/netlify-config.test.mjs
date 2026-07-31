@@ -11,5 +11,6 @@ test("Netlify uses a verified static export instead of the vinext server output"
   assert.match(netlify, /command = "npm run build:netlify"/);
   assert.match(netlify, /publish = "out"/);
   assert.match(netlify, /NETLIFY_NEXT_PLUGIN_SKIP = "true"/);
-  assert.match(nextConfig, /output: isNetlifyStaticExport \? "export" : undefined/);
+  assert.match(nextConfig, /const isStaticExport = isNetlifyStaticExport \|\| isGitHubPagesExport/);
+  assert.match(nextConfig, /output: isStaticExport \? "export" : undefined/);
 });
