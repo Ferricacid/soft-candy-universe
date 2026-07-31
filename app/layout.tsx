@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { headers } from "next/headers";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -13,11 +12,18 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export async function generateMetadata(): Promise<Metadata> {
-  const requestHeaders = await headers();
-  const host = requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host") ?? "localhost:3000";
-  const protocol = requestHeaders.get("x-forwarded-proto")?.split(",")[0] ?? (host.startsWith("localhost") ? "http" : "https");
-  const metadataBase = new URL(`${protocol}://${host}`);
+export function generateMetadata(): Metadata {
+  const deploymentUrl =
+    process.env.DEPLOY_PRIME_URL ??
+    process.env.URL ??
+    process.env.NEXT_PUBLIC_SITE_URL ??
+    process.env.VERCEL_PROJECT_PRODUCTION_URL ??
+    "https://soft-candy-universe-lucy.lucy3007.chatgpt.site";
+  const metadataBase = new URL(
+    deploymentUrl.startsWith("http://") || deploymentUrl.startsWith("https://")
+      ? deploymentUrl
+      : `https://${deploymentUrl}`,
+  );
 
   return {
     metadataBase,
